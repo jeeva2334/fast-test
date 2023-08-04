@@ -8,11 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import *
 from schemas import *
 from sqlalchemy.orm import Session
-from supabase import create_client, Client
-
-url = "https://wvypmdbricosexfspqzi.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2eXBtZGJyaWNvc2V4ZnNwcXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTEwNzkwMjIsImV4cCI6MjAwNjY1NTAyMn0.zK21y6H8utIX-CEhIpyMKVFQqwl_Lc_aF7r1S2JceVk"
-supabase: Client = create_client(url, key)
 
 class Questions(BaseModel):
     question: str
