@@ -1,9 +1,18 @@
 from fastapi import *
 import uvicorn
+from database import SessionLocal
 import random
 import string
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from models import *
+from schemas import *
+from sqlalchemy.orm import Session
+from supabase import create_client, Client
+
+url = "https://wvypmdbricosexfspqzi.supabase.co"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2eXBtZGJyaWNvc2V4ZnNwcXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTEwNzkwMjIsImV4cCI6MjAwNjY1NTAyMn0.zK21y6H8utIX-CEhIpyMKVFQqwl_Lc_aF7r1S2JceVk"
+supabase: Client = create_client(url, key)
 
 class Questions(BaseModel):
     question: str
@@ -18,32 +27,39 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-def generate_api_key(length):
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def generate_api_key(db):
     character_pool = string.ascii_letters + string.digits
     api_key = ""
+    length = 16
 
     for _ in range(length):
-        # Randomly select a character from the character pool
         random_index = random.randint(0, len(character_pool) - 1)
         api_key += character_pool[random_index]
 
     # Ensure that the API key is unique (check against existing keys in the database, if applicable)
-    if is_duplicate(api_key):
-        # Regenerate the API key
+    if is_duplicate(api_key,db):
         return generate_api_key(length)
 
     return api_key
 
-def is_duplicate(api_key):
-    # Replace this function with your own logic to check if the API key is duplicate
-    # For example, you could check against existing keys in a database
-    # For this example, we assume there are no duplicates
+def is_duplicate(api_key,db):
+    response = db.query(ApiBot).filter(ApiBot.apikey == api_key).all()
+    if response:
+        return True
     return False
 
 
 @app.get("/")
-def hello():
-    return "Working fine"
+def hello(db:Session = Depends(get_db)):
+    response  = db.query(ApiBot).all()
+    return response
 
 @app.get("/get_api")
 def create_api():
@@ -54,3 +70,26 @@ def create_api():
 def get_ans(ques: Questions):
     print(ques.question)
     return {"ans":ques.question}
+
+@app.post('/create_api')
+def create_api(api: CreateApiBot,db: Session = Depends(get_db)):
+    print(api) 
+    apikey = f"cx-{generate_api_key(db)}"
+    upload_api = ApiBot(apikey=apikey,image=api.imageUrl,color=api.color,textcolor=api.textColor,title=api.title,initial=api.initial)
+    db.add(upload_api)
+    db.commit()
+    db.refresh(upload_api)
+    return apikey
+
+@app.post('/fetch_bot')
+def fetch_bot(api:fetch,db: Session = Depends(get_db)):
+    response  = db.query(ApiBot).filter(ApiBot.apikey == api.apikey).all()
+    return response
+
+# if __name__ == '__main__':
+#     uvicorn.run(
+#         "main:app",
+#         host="localhost",
+#         port=8081,
+#         reload=True
+#     )
